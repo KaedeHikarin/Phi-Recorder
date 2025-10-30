@@ -25,46 +25,21 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 8
-          run_install: false
-
-      - name: Get pnpm store directory
-        shell: bash
+      - name: Build CLI for aarch64-apple-darwin
         run: |
-          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
-
-      - name: Setup pnpm cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ env.STORE_PATH }}
-          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
-          restore-keys: |
-            ${{ runner.os }}-pnpm-store-
-
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Build Tauri app for aarch64-apple-darwin
-        run: pnpm tauri build --target aarch64-apple-darwin --bundles none
+          cd src-tauri
+          cargo build --release --target aarch64-apple-darwin
 
       - name: Create release archive
         run: |
           cd src-tauri/target/aarch64-apple-darwin/release
-          tar -czf phi-recorder-macos-aarch64.tar.gz phi-recorder
-          mv phi-recorder-macos-aarch64.tar.gz $GITHUB_WORKSPACE/
+          tar -czf phi-recorder-cli-macos-aarch64.tar.gz phi-recorder
+          mv phi-recorder-cli-macos-aarch64.tar.gz $GITHUB_WORKSPACE/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phi-recorder-macos-aarch64
-          path: phi-recorder-macos-aarch64.tar.gz
+          name: phi-recorder-cli-macos-aarch64
+          path: phi-recorder-cli-macos-aarch64.tar.gz
           if-no-files-found: error
           retention-days: 30
