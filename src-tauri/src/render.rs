@@ -300,13 +300,13 @@ pub fn find_ffmpeg() -> Result<Option<String>> {
     })
 }
 
-pub const ENCODER_LIST_HEVC: [&str; 4] = ["hevc_nvenc", "hevc_qsv", "hevc_amf", "hevc_vaapi"];
-pub const ENCODER_LIST_AVC: [&str; 4] = ["h264_nvenc", "h264_qsv", "h264_amf", "h264_vaapi"];
+pub const ENCODER_LIST_HEVC: [&str; 5] = ["hevc_nvenc", "hevc_qsv", "hevc_amf", "hevc_vaapi","hevc_videotoolbox"];
+pub const ENCODER_LIST_AVC: [&str; 5] = ["h264_nvenc", "h264_qsv", "h264_amf", "h264_vaapi","h264_videotoolbox"];
 
 pub fn get_encoder(
     ffmpeg: &String,
     config: &RenderConfig,
-    encoder_list: [&str; 4],
+    encoder_list: [&str; 5],
     use_global_config: bool,
 ) -> Option<String> {
     if let Some(custom_encoder) = &config.custom_encoder {
@@ -871,6 +871,9 @@ pub async fn main(cmd: bool) -> Result<()> {
         } else {
             "balanced"
         }
+    } else if ffmpeg_encoder == encoder_list[4] {
+        // VideoToolbox 编码器不使用 preset 参数
+        ""
     } else {
         if let Some(i) = ffmpeg_preset_name_list.get(0) {
             i.as_str()
@@ -889,6 +892,9 @@ pub async fn main(cmd: bool) -> Result<()> {
             "-q"
         } else if ffmpeg_encoder == encoder_list[2] {
             "-qp_p"
+        } else if ffmpeg_encoder == encoder_list[4] {
+            // VideoToolbox 使用 -q:v 进行质量控制
+            "-q:v"
         } else if ffmpeg_encoder == config.custom_encoder.unwrap_or_default() {
             "-q"
         } else {
@@ -973,21 +979,38 @@ pub async fn main(cmd: bool) -> Result<()> {
         ffmpeg_audio_effect_mix
     );
 
-    let args2 = format!(
-        "-c:a {} -c:v {} -pix_fmt yuv420p {} {} {} {} -filter_complex {} -map 0:v:0 -map [a] -vf vflip -f {}",
-        if config.hires {
-            "pcm_f32le"
-        } else {
-            "aac -b:a 320k"
-        },
-        ffmpeg_encoder,
-        bitrate_control,
-        config.bitrate,
-        ffmpeg_preset,
-        ffmpeg_preset_name,
-        ffmpeg_audio_filter,
-        if config.hires { "mov" } else { "mp4" }
-    );
+    let args2 = if ffmpeg_encoder == encoder_list[4] {
+        // VideoToolbox 编码器的特殊参数配置
+        format!(
+            "-c:a {} -c:v {} -pix_fmt yuv420p {} {} -filter_complex {} -map 0:v:0 -map [a] -vf vflip -f {}",
+            if config.hires {
+                "pcm_f32le"
+            } else {
+                "aac -b:a 320k"
+            },
+            ffmpeg_encoder,
+            bitrate_control,
+            config.bitrate,
+            ffmpeg_audio_filter,
+            if config.hires { "mov" } else { "mp4" }
+        )
+    } else {
+        format!(
+            "-c:a {} -c:v {} -pix_fmt yuv420p {} {} {} {} -filter_complex {} -map 0:v:0 -map [a] -vf vflip -f {}",
+            if config.hires {
+                "pcm_f32le"
+            } else {
+                "aac -b:a 320k"
+            },
+            ffmpeg_encoder,
+            bitrate_control,
+            config.bitrate,
+            ffmpeg_preset,
+            ffmpeg_preset_name,
+            ffmpeg_audio_filter,
+            if config.hires { "mov" } else { "mp4" }
+        )
+    };
 
     info!(
         "Preparing Render Time: {:.2?}",
