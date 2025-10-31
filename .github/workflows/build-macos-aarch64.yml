@@ -1,4 +1,4 @@
-﻿name: Build macOS aarch64
+﻿name: Build Linux x86_64
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-macos-aarch64:
-    runs-on: macos-15
+  build-linux-x86_64:
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Checkout repository
@@ -15,31 +15,68 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            libayatana-appindicator3-dev \
+            librsvg2-dev \
+            patchelf \
+            libssl-dev \
+            libsoup-3.0-dev \
+            libjavascriptcoregtk-4.1-dev \
+            libglib2.0-dev \
+            libcairo2-dev \
+            libpango1.0-dev \
+            libgdk-pixbuf2.0-dev \
+            libatk1.0-dev \
+            libasound2-dev \
+            libxcb-render0-dev \
+            libxcb-shape0-dev \
+            libxcb-xfixes0-dev \
+            libxkbcommon-dev \
+            libfontconfig1-dev \
+            libfreetype6-dev \
+            libexpat1-dev \
+            pkg-config \
+            ffmpeg \
+            libavcodec-dev \
+            libavformat-dev \
+            libavutil-dev \
+            libswscale-dev \
+            libswresample-dev \
+            libavfilter-dev \
+            libavdevice-dev \
+            clang \
+            cmake
+
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin
+          targets: x86_64-unknown-linux-gnu
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Build CLI for aarch64-apple-darwin
+      - name: Build CLI for x86_64-unknown-linux-gnu
         run: |
           cd src-tauri
-          cargo build --release --target aarch64-apple-darwin
+          cargo build --release --target x86_64-unknown-linux-gnu
 
       - name: Create release archive
         run: |
-          cd src-tauri/target/aarch64-apple-darwin/release
-          tar -czf phi-recorder-cli-macos-aarch64.tar.gz phi-recorder
-          mv phi-recorder-cli-macos-aarch64.tar.gz $GITHUB_WORKSPACE/
+          cd src-tauri/target/x86_64-unknown-linux-gnu/release
+          tar -czf phi-recorder-cli-linux-x86_64.tar.gz phi-recorder
+          mv phi-recorder-cli-linux-x86_64.tar.gz $GITHUB_WORKSPACE/
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: phi-recorder-cli-macos-aarch64
-          path: phi-recorder-cli-macos-aarch64.tar.gz
+          name: phi-recorder-cli-linux-x86_64
+          path: phi-recorder-cli-linux-x86_64.tar.gz
           if-no-files-found: error
           retention-days: 30
